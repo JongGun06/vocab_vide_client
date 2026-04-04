@@ -1,98 +1,208 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, Text, TouchableOpacity, StyleSheet, Dimensions, 
+  TextInput, KeyboardAvoidingView, Platform, Keyboard, Modal, ScrollView 
+} from 'react-native';
+import { useStore } from '../../src/store/useStore';
+import { THEMES } from '../../src/constants/themes';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
+import { BookOpen, X, Volume2 } from 'lucide-react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width, height } = Dimensions.get('window');
 
-export default function HomeScreen() {
+export default function CardsScreen() {
+  const { words, theme, updateWordProgress } = useStore();
+  const currentTheme = THEMES[theme] || THEMES.emerald;
+  
+  const [flipped, setFlipped] = useState(false);
+  const [userInput, setUserInput] = useState('');
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [hint, setHint] = useState('');
+  const [isModalVisible, setModalVisible] = useState(false);
+
+  const dueWords = words.filter(w => w.nextReview <= Date.now());
+  const currentWord = dueWords[0];
+  const rotation = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${rotation.value}deg` }],
+  }));
+
+  useEffect(() => {
+    setWrongAttempts(0);
+    setHint('');
+    setUserInput('');
+  }, [currentWord]);
+
+  const speak = (text: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Speech.speak(text, { language: 'en-US', rate: 0.9 });
+  };
+
+  const handleFlip = () => {
+    if (!currentWord) return;
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    rotation.value = withSpring(flipped ? 0 : 180);
+    setFlipped(!flipped);
+  };
+
+  const checkWord = () => {
+    if (!currentWord || !userInput.trim()) return;
+    const isCorrect = userInput.trim().toLowerCase() === currentWord.translation.toLowerCase();
+    if (isCorrect) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      handleAction(true);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const newAttempts = wrongAttempts + 1;
+      setWrongAttempts(newAttempts);
+      setHint(currentWord.translation.substring(0, newAttempts));
+      setUserInput('');
+    }
+  };
+
+  const handleAction = (success: boolean) => {
+    rotation.value = 0;
+    setFlipped(false);
+    setUserInput('');
+    setWrongAttempts(0);
+    setHint('');
+    updateWordProgress(currentWord.id, success);
+  };
+
+  if (!currentWord) {
+    return (
+      <View style={[styles.container, { backgroundColor: currentTheme.background }]}>
+        <Text style={[styles.emptyText, { color: currentTheme.text }]}>Все выучено! 🔥</Text>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: currentTheme.background }]}>
+      <Text style={[styles.counter, { color: currentTheme.textSecondary }]}>Осталось: {dueWords.length}</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <TouchableOpacity activeOpacity={1} onPress={handleFlip}>
+        <Animated.View style={[styles.card, animatedStyle, { backgroundColor: currentTheme.card, borderColor: currentTheme.border }]}>
+          {!flipped ? (
+            <View style={styles.cardContent}>
+               <TouchableOpacity style={styles.speakIcon} onPress={() => speak(currentWord.word)}>
+                <Volume2 size={28} color={currentTheme.primary} />
+              </TouchableOpacity>
+              <Text style={[styles.wordText, { color: currentTheme.text }]}>{currentWord.word}</Text>
+            </View>
+          ) : (
+            <Text style={[styles.transText, { color: currentTheme.primary, transform: [{ rotateY: '180deg' }] }]}>{currentWord.translation}</Text>
+          )}
+        </Animated.View>
+      </TouchableOpacity>
+
+      <View style={styles.uiContainer}>
+        {!flipped ? (
+          <View style={styles.inputSection}>
+            {hint ? <Text style={[styles.hintText, { color: currentTheme.primary }]}>{hint}...</Text> : null}
+            <TextInput
+              style={[styles.input, { backgroundColor: currentTheme.card, color: currentTheme.text, borderColor: wrongAttempts > 0 ? '#EF4444' : currentTheme.border }]}
+              placeholder="Твой перевод..."
+              placeholderTextColor={currentTheme.textSecondary}
+              value={userInput}
+              onChangeText={setUserInput}
+              autoCapitalize="none"
+              onSubmitEditing={checkWord}
+            />
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={[styles.smallBtn, { backgroundColor: currentTheme.card, borderColor: currentTheme.border, borderWidth: 1 }]} onPress={handleFlip}>
+                <Text style={{ color: currentTheme.textSecondary }}>Забыл</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.checkBtn, { backgroundColor: currentTheme.primary }]} onPress={checkWord}>
+                <Text style={styles.btnText}>Проверить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.confirmSection}>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#EF4444' }]} onPress={() => handleAction(false)}>
+                <Text style={styles.btnText}>Не знал</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: currentTheme.primary }]} onPress={() => handleAction(true)}>
+                <Text style={styles.btnText}>Знал</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.extraButtons}>
+              {currentWord.examples && currentWord.examples.length > 0 && (
+                <TouchableOpacity style={[styles.exampleBtn, { borderColor: currentTheme.primary }]} onPress={() => setModalVisible(true)}>
+                  <BookOpen size={20} color={currentTheme.primary} />
+                  <Text style={[styles.exampleBtnText, { color: currentTheme.primary }]}>Примеры</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+
+      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: currentTheme.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: currentTheme.text }]}>Примеры для "{currentWord.word}"</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <X size={24} color={currentTheme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {currentWord.examples?.map((ex, i) => (
+                <View key={i} style={[styles.exampleItem, { borderBottomColor: currentTheme.border }]}>
+                  <View style={styles.exRow}>
+                    <Text style={[styles.exSentence, { color: currentTheme.text }]}>{ex.sentence}</Text>
+                    <TouchableOpacity onPress={() => speak(ex.sentence)}>
+                      <Volume2 size={18} color={currentTheme.primary} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.exTrans, { color: currentTheme.textSecondary }]}>{ex.translation}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  counter: { position: 'absolute', top: 60, fontSize: 16, fontWeight: '700' },
+  card: { width: width * 0.88, height: width * 0.75, borderRadius: 40, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginBottom: 40 },
+  cardContent: { alignItems: 'center', width: '100%' },
+  speakIcon: { position: 'absolute', top: -60 },
+  wordText: { fontSize: 40, fontWeight: '900', textAlign: 'center' },
+  transText: { fontSize: 34, fontWeight: '700', textAlign: 'center' },
+  uiContainer: { width: '100%', minHeight: 180 },
+  inputSection: { width: '100%', gap: 15 },
+  input: { width: '100%', height: 75, borderRadius: 24, borderWidth: 2, paddingHorizontal: 25, fontSize: 22 },
+  hintText: { fontSize: 18, fontWeight: '800' },
+  buttonRow: { flexDirection: 'row', gap: 12 },
+  smallBtn: { flex: 1, height: 65, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  checkBtn: { flex: 1.5, height: 65, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  confirmSection: { width: '100%', alignItems: 'center', gap: 20 },
+  confirmRow: { flexDirection: 'row', gap: 15, width: '100%' },
+  extraButtons: { flexDirection: 'row', gap: 10 },
+  actionBtn: { flex: 1, height: 70, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  exampleBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1 },
+  exampleBtnText: { fontWeight: '700', fontSize: 16 },
+  btnText: { color: 'white', fontSize: 18, fontWeight: '900' },
+  emptyText: { fontSize: 24, fontWeight: '800' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: { height: height * 0.6, borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 30 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
+  exampleItem: { paddingVertical: 15, borderBottomWidth: 1 },
+  exRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  exSentence: { fontSize: 17, fontWeight: '600', marginBottom: 5, flex: 1 },
+  exTrans: { fontSize: 15 },
 });
