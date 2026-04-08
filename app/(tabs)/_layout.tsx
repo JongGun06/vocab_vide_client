@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   Book,
+  Swords,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,13 +26,11 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: currentTheme.card,
           borderTopColor: currentTheme.border,
-          borderTopWidth: 1,
+          borderTopWidth: 0,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
           elevation: 0,
-          //@ts-ignore
-          borderTopWidth: 0,
         },
       }}
     >
@@ -50,17 +49,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stats"
+        name="battle"
         options={{
-          title: "Статистика",
-          tabBarIcon: ({ color }) => <BarChart3 size={22} color={color} />,
+          title: "Битва",
+          tabBarIcon: ({ color }) => <Swords size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="words"
         options={{
-          title: 'Слова',
+          title: "Слова",
           tabBarIcon: ({ color }) => <Book size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: "Статистика",
+          tabBarIcon: ({ color }) => <BarChart3 size={22} color={color} />,
         }}
       />
       <Tabs.Screen

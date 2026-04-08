@@ -100,7 +100,6 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
-      {/* НОВЫЙ БЛОК: РУЧНОЕ ДОБАВЛЕНИЕ */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <PlusCircle size={20} color={currentTheme.primary} />
@@ -166,7 +165,6 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* БЛОК ДАННЫХ */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Download size={20} color={currentTheme.primary} />
@@ -227,7 +225,6 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* БЛОК ТЕМ */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Palette size={20} color={currentTheme.primary} />

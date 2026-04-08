@@ -12,7 +12,7 @@ export interface Word {
   id: string;
   word: string;
   translation: string;
-  examples?: Example[]; // Теперь у слова могут быть примеры
+  examples?: Example[]; 
   level: number;
   nextReview: number;
   history: { date: number; state: "easy" | "hard" }[];
@@ -30,7 +30,6 @@ interface AppState {
   lastStudyDate: string | null;
   updateStreak: () => void;
 }
-
 const INTERVALS = [1, 7, 30, 90];
 
 export const useStore = create<AppState>()(
@@ -38,16 +37,16 @@ export const useStore = create<AppState>()(
     (set) => ({
       words: [],
       theme: "emerald",
+      streak: 0,
+      lastStudyDate: null,
+
       setTheme: (theme) => set({ theme }),
+
       addWords: (jsonWords) =>
         set((state) => {
-          // Оптимизация O(n): создаем Set из уже существующих слов
-          const existingWords = new Set(
-            state.words.map((w) => w.word.toLowerCase()),
-          );
-
+          const existingWords = new Set(state.words.map((w) => w.word.toLowerCase()));
           const filteredNewWords = jsonWords
-            .filter((w) => !existingWords.has(w.word.toLowerCase())) // Убираем дубликаты
+            .filter((w) => !existingWords.has(w.word.toLowerCase()))
             .map((w) => ({
               ...w,
               id: Math.random().toString(36),
@@ -55,21 +54,23 @@ export const useStore = create<AppState>()(
               nextReview: Date.now(),
               history: [],
             }));
-
           return { words: [...state.words, ...filteredNewWords] };
         }),
+
       updateWordProgress: (id, success) =>
         set((state) => ({
           words: state.words.map((w) => {
             if (w.id === id) {
-              const nextLevel = success
-                ? Math.min(w.level + 1, INTERVALS.length - 1)
+              const nextLevel = success 
+                ? Math.min(w.level + 1, INTERVALS.length - 1) 
                 : 0;
+
+              const reviewOffset = success ? INTERVALS[w.level] : 0;
+
               return {
                 ...w,
                 level: nextLevel,
-                nextReview:
-                  Date.now() + INTERVALS[nextLevel] * 24 * 60 * 60 * 1000,
+                nextReview: Date.now() + reviewOffset * 24 * 60 * 60 * 1000,
                 history: [
                   ...w.history,
                   { date: Date.now(), state: success ? "easy" : "hard" },
@@ -79,34 +80,28 @@ export const useStore = create<AppState>()(
             return w;
           }),
         })),
-      resetWords: () => set({ words: [] }),
-      deleteWord: (id) =>
-        set((state) => ({
-          words: state.words.filter((w) => w.id !== id),
-        })),
-      streak: 0,
-      lastStudyDate: null,
+
       updateStreak: () =>
         set((state) => {
           const today = new Date().toLocaleDateString();
-          const lastDate = state.lastStudyDate;
-
-          if (lastDate === today) return state; // Уже заходил сегодня
+          if (state.lastStudyDate === today) return state;
 
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = yesterday.toLocaleDateString();
 
-          if (lastDate === yesterdayStr) {
-            return { streak: state.streak + 1, lastStudyDate: today };
-          } else {
-            return { streak: 1, lastStudyDate: today };
-          }
+          return {
+            streak: state.lastStudyDate === yesterdayStr ? state.streak + 1 : 1,
+            lastStudyDate: today,
+          };
         }),
+
+      resetWords: () => set({ words: [] }),
+      deleteWord: (id) => set((state) => ({ words: state.words.filter((w) => w.id !== id) })),
     }),
     {
       name: "vocab-storage",
       storage: createJSONStorage(() => AsyncStorage),
-    },
-  ),
+    }
+  )
 );
